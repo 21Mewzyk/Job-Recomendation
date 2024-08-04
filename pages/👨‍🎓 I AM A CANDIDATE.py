@@ -4,7 +4,7 @@ import numpy as np
 import base64
 import os, sys
 import pymongo
-from pyresparser import ResumeParser  # Ensure this import is present
+from pyresparser import ResumeParser
 from JobRecommendation.exception import jobException
 from JobRecommendation.side_logo import add_logo
 from JobRecommendation.sidebar import sidebar
@@ -14,12 +14,17 @@ from JobRecommendation import text_preprocessing, distance_calculation
 dataBase = "Job-Recomendation"
 collection1 = "preprocessed_jobs_Data"
 collection2 = "Resume_from_CANDIDATE"
+resume_data_collection = "Resume_Data"  # New collection for storing resume data
 cvs_folder = r"D:\Vscode_projects\Job-Recommendation\CVs"  # Absolute path to the CVs folder
 
 st.set_page_config(layout="wide", page_icon='logo/logo2.png', page_title="CANDIDATE")
 
 add_logo()
 sidebar()
+
+# MongoDB connection setup
+client = pymongo.MongoClient("mongodb://localhost:27017/")  # Update with your MongoDB URI if different
+db = client[dataBase]
 
 def load_cvs_to_base64(folder_path):
     cv_base64 = {}
@@ -61,7 +66,6 @@ def app():
         if st.button('Proceed Further !! '):
             # Save the uploaded CV
             if save_uploaded_file(cv, cvs_folder):
-                st.success(f"File {cv.name} saved successfully!")
                 try:
                     # Process the saved CV
                     cv_path = os.path.join(cvs_folder, cv.name)
@@ -72,9 +76,18 @@ def app():
                     resume_data = ResumeParser(cv_path).get_extracted_data()
                     resume_data["pdf_to_base64"] = encoded_pdf
 
-                    timestamp = utils.generateUniqueFileName()
-                    save = {timestamp: resume_data}
-                    MongoDB_function.resume_store(save, dataBase, collection2)
+                    # Check if the resume already exists in the database
+                    existing_resume = db[resume_data_collection].find_one({"email": resume_data.get("email")})
+                    if existing_resume:
+                        st.info("Resume already exists in the database. Skipping save.")
+                    else:
+                        # Save resume data to MongoDB
+                        db[resume_data_collection].insert_one(resume_data)
+                        st.success(f"File {cv.name} saved successfully!")
+
+                        timestamp = utils.generateUniqueFileName()
+                        save = {timestamp: resume_data}
+                        MongoDB_function.resume_store(save, dataBase, collection2)
 
                     try:
                         NLP_Processed_CV = text_preprocessing.nlp(cv_text)
