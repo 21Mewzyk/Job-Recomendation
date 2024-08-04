@@ -209,14 +209,13 @@ def run():
                     my_bar.progress(percent_complete + 1)
                 st.success('** Your Resume Writing Score: ' + str(score)+'**')
                 st.warning("** Note: This score is calculated based on the content that you have added in your Resume. **")
-                st.balloons()
+                
 
                 
 
             else:
                 st.error("Wrong ID & Password Provided")
-
-            st.balloons()           
+        
 
 
 

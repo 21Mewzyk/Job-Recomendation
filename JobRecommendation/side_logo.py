@@ -11,7 +11,7 @@ import streamlit as st
 #                 background-position: 20px 20px;
 #             }
 #             [data-testid="stSidebarNav"]::before {
-#                 content: "TALENT HIVE";
+#                 content: "JOB HUNTER";
 #                 margin-left: 20px;
 #                 margin-top: 20px;
 #                 font-size: 30px;
@@ -40,7 +40,7 @@ def add_logo(logo_path="logo/image.png", width=300, height=100):
         <style>
     
             [data-testid="stSidebarNav"]::before {
-                content: "TALENT HIVE";
+                content: "JOB HUNTER";
                 margin-left: 20px;
                 margin-top: 20px;
                 font-size: 30px;
