@@ -102,7 +102,7 @@ def app():
                     list_scores = [output3[i][0][0] for i in top]
                     cv = get_recommendation(top, df, list_scores)
 
-                    top, index_score = distance_calculation.KNN(df['All'], df2['All'], number_of_neighbors=100)
+                    top, index_score = distance_calculation.KNN(df['All'], df2['All'], number_of_neighbors=3)
                     knn = get_recommendation(top, df, index_score)
 
                     merge1 = knn[['JobID', 'positionName', 'score']].merge(TF[['JobID', 'score']], on="JobID")
@@ -136,12 +136,6 @@ def app():
 
                     final_jobrecomm = final_jobrecomm.replace(np.nan, "Not Provided")
 
-                    @st.cache_data
-                    def make_clickable(link):
-                        if link.startswith('<a'):
-                            return link
-                        return f'<a target="_blank" href="{link}">more details</a>'
-
                     with db_expander:
                         def convert_df(df):
                             try:
@@ -149,35 +143,21 @@ def app():
                             except Exception as e:
                                 raise jobException(e, sys)
 
-                        # Ensure columns exist before applying make_clickable
-                        if 'externalApplyLink' in final_jobrecomm.columns:
-                            final_jobrecomm['externalApplyLink'] = final_jobrecomm['externalApplyLink'].apply(make_clickable)
-                        else:
-                            final_jobrecomm['externalApplyLink'] = 'Not Provided'
+                        final_jobrecomm['url'] = final_jobrecomm['url'].apply(lambda x: f'<a target="_blank" href="{x}" style="color: blue;">Indeed Link</a>')
+                        final_df = final_jobrecomm[['company', 'positionName_x', 'description', 'location', 'salary', 'rating', 'reviewsCount', 'url']]
+                        final_df.rename({'company': 'Company', 'positionName_x': 'Position Name', 'description': 'Job Description', 'location': 'Location', 'salary': 'Salary', 'rating': 'Company Rating', 'reviewsCount': 'Company ReviewCount', 'url': 'Indeed Link'}, axis=1, inplace=True)
 
-                        if 'url' in final_jobrecomm.columns:
-                            final_jobrecomm['url'] = final_jobrecomm['url'].apply(make_clickable)
-                        else:
-                            final_jobrecomm['url'] = 'Not Provided'
-
-                        final_df = final_jobrecomm[['company', 'positionName_x', 'description', 'location', 'salary', 'rating', 'reviewsCount', "externalApplyLink", 'url']]
-                        final_df.rename({'company': 'Company', 'positionName_x': 'Position Name', 'description': 'Job Description', 'location': 'Location', 'salary': 'Salary', 'rating': 'Company Rating', 'reviewsCount': 'Company ReviewCount', 'externalApplyLink': 'Web Apply Link', 'url': 'Indeed Apply Link'}, axis=1, inplace=True)
-                        
-                        # Display job recommendations in a grid format with buttons
-                        no_of_cols = 3  # Number of columns for the grid
-                        cols = st.columns(no_of_cols)
-                        for idx, row in final_df.iterrows():
-                            col_idx = idx % no_of_cols
-                            with cols[col_idx]:
-                                st.markdown(f"**{row['Position Name']}**")
-                                st.markdown(f"**Company:** {row['Company']}")
-                                st.markdown(f"**Location:** {row['Location']}")
-                                st.markdown(f"**Salary:** {row['Salary']}")
-                                st.markdown(f"**Rating:** {row['Company Rating']}")
-                                st.markdown(f"**Reviews Count:** {row['Company ReviewCount']}")
-                                st.markdown(f"**Job Description:** {row['Job Description']}")
-                                st.markdown(f'<a href="{row["Web Apply Link"]}" target="_blank"><button style="background-color:blue;color:white;border:none;padding:10px 20px">More Details</button></a>', unsafe_allow_html=True)
-                                st.markdown(f'<a href="{row["Indeed Apply Link"]}" target="_blank"><button style="background-color:blue;color:white;border:none;padding:10px 20px">Indeed Link</button></a>', unsafe_allow_html=True)
+                        cols = st.columns(2)
+                        for index, row in final_df.iterrows():
+                            with cols[index % 2]:
+                                st.markdown(f"**{row['Position Name']}**\n\n"
+                                            f"**Company:** {row['Company']}\n\n"
+                                            f"**Location:** {row['Location']}\n\n"
+                                            f"**Salary:** {row['Salary']}\n\n"
+                                            f"**Rating:** {row['Company Rating']}\n\n"
+                                            f"**Reviews Count:** {row['Company ReviewCount']}\n\n"
+                                            f"**Description:** {row['Job Description']}\n\n"
+                                            f"{row['Indeed Link']}")
                                 st.markdown("---")
 
                     csv = convert_df(final_df)
