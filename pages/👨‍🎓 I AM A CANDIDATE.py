@@ -1,55 +1,80 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import re
-import plotly.express as px
-import time, datetime
-import base64, random
-from pyresparser import ResumeParser
+import base64
 import os, sys
 import pymongo
-from JobRecommendation.animation import load_lottieurl
-from streamlit_lottie import st_lottie, st_lottie_spinner
+from pyresparser import ResumeParser  # Ensure this import is present
+from JobRecommendation.exception import jobException
 from JobRecommendation.side_logo import add_logo
 from JobRecommendation.sidebar import sidebar
 from JobRecommendation import utils, MongoDB_function
 from JobRecommendation import text_preprocessing, distance_calculation
-from JobRecommendation.exception import jobException
 
 dataBase = "Job-Recomendation"
 collection1 = "preprocessed_jobs_Data"
 collection2 = "Resume_from_CANDIDATE"
+cvs_folder = r"D:\Vscode_projects\Job-Recommendation\CVs"  # Absolute path to the CVs folder
 
 st.set_page_config(layout="wide", page_icon='logo/logo2.png', page_title="CANDIDATE")
 
-url = load_lottieurl("https://assets4.lottiefiles.com/packages/lf20_x62chJ.json")
 add_logo()
 sidebar()
 
-st.set_option('deprecation.showPyplotGlobalUse', False)
+def load_cvs_to_base64(folder_path):
+    cv_base64 = {}
+    try:
+        # Log all files in the folder
+        st.write(f"Debug: Files in {folder_path}: {os.listdir(folder_path)}")
+        for cv_file in os.listdir(folder_path):
+            if cv_file.endswith(".pdf"):
+                with open(os.path.join(folder_path, cv_file), "rb") as pdf_file:
+                    encoded_string = base64.b64encode(pdf_file.read()).decode('utf-8')
+                    cv_base64[cv_file.lower()] = encoded_string  # Store filenames in lowercase
+        st.write(f"Debug: Contents of cv_base64: {list(cv_base64.keys())}")  # Debug info
+    except FileNotFoundError:
+        st.error(f"Folder not found: {folder_path}")
+    except Exception as e:
+        st.error(f"An error occurred while loading CVs: {e}")
+    return cv_base64
+
+def save_uploaded_file(uploaded_file, folder_path):
+    try:
+        with open(os.path.join(folder_path, uploaded_file.name), "wb") as f:
+            f.write(uploaded_file.getbuffer())
+        return True
+    except Exception as e:
+        st.error(f"An error occurred while saving the file: {e}")
+        return False
+
+def sanitize_filename(name):
+    # Function to sanitize filenames to match the files in the directory
+    return name.replace(" ", "").replace(".", "").lower()
 
 def app():
     st.title('Job Recommendation')
     c1, c2 = st.columns((3, 2))
     cv = c1.file_uploader('Upload your CV', type='pdf')
-    no_of_jobs = st.slider('Maximum Number of Job Recommendations:', min_value=1, max_value=100, step=10)
+    no_of_jobs = st.slider('Number of Job Recommendations:', min_value=1, max_value=100, step=10)
 
     if cv is not None:
-        if st.button('Proceed'):
-            with st_lottie_spinner(url, key="download", reverse=True, speed=1, loop=True, quality='high'):
-                time.sleep(10)
+        if st.button('Proceed Further !! '):
+            # Save the uploaded CV
+            if save_uploaded_file(cv, cvs_folder):
+                st.success(f"File {cv.name} saved successfully!")
                 try:
-                    count_ = 0
-                    cv_text = utils.extract_data(cv)
-                    encoded_pdf = utils.pdf_to_base64(cv)
-                    resume_data = ResumeParser(cv).get_extracted_data()
+                    # Process the saved CV
+                    cv_path = os.path.join(cvs_folder, cv.name)
+                    with open(cv_path, "rb") as pdf_file:
+                        encoded_pdf = base64.b64encode(pdf_file.read()).decode('utf-8')
+                    
+                    cv_text = utils.extract_data(cv_path)
+                    resume_data = ResumeParser(cv_path).get_extracted_data()
                     resume_data["pdf_to_base64"] = encoded_pdf
 
                     timestamp = utils.generateUniqueFileName()
                     save = {timestamp: resume_data}
-                    if count_ == 0:
-                        count_ = 1
-                        MongoDB_function.resume_store(save, dataBase, collection2)
+                    MongoDB_function.resume_store(save, dataBase, collection2)
 
                     try:
                         NLP_Processed_CV = text_preprocessing.nlp(cv_text)
@@ -121,11 +146,13 @@ def app():
 
                     @st.cache_data
                     def make_clickable(link):
-                        return link
+                        text = 'more details'
+                        return f'<a target="_blank" href="{link}">{text}</a>'
 
+                    final_jobrecomm['externalApplyLink'] = final_jobrecomm['externalApplyLink'].apply(make_clickable)
                     final_jobrecomm['url'] = final_jobrecomm['url'].apply(make_clickable)
-                    final_df = final_jobrecomm[['company', 'positionName_x', 'description', 'location', 'salary', 'url']]
-                    final_df.rename({'company': 'Company', 'positionName_x': 'Position Name', 'description': 'Job Description', 'location': 'Location', 'salary': 'Salary', 'url': 'Indeed Apply Link'}, axis=1, inplace=True)
+                    final_df = final_jobrecomm[['company', 'positionName_x', 'description', 'location', 'salary', 'rating', 'reviewsCount', "externalApplyLink", 'url']]
+                    final_df.rename({'company': 'Company', 'positionName_x': 'Position Name', 'description': 'Job Description', 'location': 'Location', 'salary': 'Salary', 'rating': 'Company Rating', 'reviewsCount': 'Company ReviewCount', 'externalApplyLink': 'Web Apply Link', 'url': 'Indeed Apply Link'}, axis=1, inplace=True)
 
                     st.write("### Job Recommendations")
                     st.dataframe(final_df)
