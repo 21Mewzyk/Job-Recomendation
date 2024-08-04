@@ -60,10 +60,10 @@ def app():
     st.title('Job Recommendation')
     c1, c2 = st.columns((3, 2))
     cv = c1.file_uploader('Upload your CV', type='pdf')
-    no_of_jobs = st.slider('Number of Job Recommendations:', min_value=1, max_value=100, step=10)
+    no_of_jobs = st.slider('Maximum Number of Job Recommendations:', min_value=1, max_value=100, step=10)
 
     if cv is not None:
-        if st.button('Proceed Further !! '):
+        if st.button('Proceed'):
             # Save the uploaded CV
             if save_uploaded_file(cv, cvs_folder):
                 try:
