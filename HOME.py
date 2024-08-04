@@ -1,4 +1,3 @@
-# Core Pkgs
 import streamlit as st 
 from JobRecommendation.side_logo import add_logo
 from JobRecommendation.sidebar import sidebar
@@ -6,7 +5,6 @@ import altair as alt
 import plotly.express as px 
 from streamlit_extras.switch_page_button import switch_page
 from JobRecommendation.lottie_animation import load_lottieurl
-# EDA Pkgs
 import pandas as pd 
 import numpy as np 
 from datetime import datetime
@@ -68,11 +66,3 @@ st.write("<p style='font-size:20px;'>This app is designed to assist applicants i
 # footer = "<div style='background-color: #758283; padding: 10px; color: white; text-align: center; position: absolute; bottom: 0; width: 100%;'>© 2023 TalentHive</div>"
 # st.markdown(footer, unsafe_allow_html=True)
 
-
-# Create a container for the footer
-footer_container = st.container()
-
-# Add content to the footer container
-with footer_container:
-
-    st.write("Github @ <a href='https://github.com/Ryzxxl/Job-Recomendation'>Repository</a>", unsafe_allow_html=True)
