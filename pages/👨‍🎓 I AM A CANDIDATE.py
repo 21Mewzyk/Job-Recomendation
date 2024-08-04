@@ -121,15 +121,15 @@ def app():
 
                     @st.cache_data
                     def make_clickable(link):
-                        text = 'more details'
-                        return f'<a target="_blank" href="{link}">{text}</a>'
+                        return f'<a target="_blank" href="{link}">{link}</a>'
 
                     final_jobrecomm['url'] = final_jobrecomm['url'].apply(make_clickable)
+                    final_jobrecomm['description'] = final_jobrecomm['description'].apply(lambda x: f'<div style="display: none;" class="full-desc">{x}</div><div class="short-desc">{x[:100]}... <a href="javascript:void(0);" ondblclick="this.previousElementSibling.style.display=\'block\';this.style.display=\'none\';">Read more</a></div>')
                     final_df = final_jobrecomm[['company', 'positionName_x', 'description', 'location', 'salary', 'url']]
                     final_df.rename({'company': 'Company', 'positionName_x': 'Position Name', 'description': 'Job Description', 'location': 'Location', 'salary': 'Salary', 'url': 'Indeed Apply Link'}, axis=1, inplace=True)
 
                     st.write("### Job Recommendations")
-                    st.dataframe(final_df)
+                    st.markdown(final_df.to_html(escape=False), unsafe_allow_html=True)
 
                     csv = final_df.to_csv(index=False).encode('utf-8')
                     st.download_button("Press to Download", csv, "file.csv", "text/csv", key='download-csv')
