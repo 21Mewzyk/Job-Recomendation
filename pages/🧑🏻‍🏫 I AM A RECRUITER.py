@@ -4,7 +4,6 @@ import numpy as np
 import base64
 import os, sys
 import pymongo
-from math import min
 from JobRecommendation.exception import jobException
 from JobRecommendation.side_logo import add_logo
 from JobRecommendation.sidebar import sidebar
@@ -33,13 +32,13 @@ def app():
         @st.cache_data
         def get_recommendation(top, df_all, scores):
             try:
-                recommendation = pd.DataFrame(columns=['name', 'degree', "email", 'Unnamed: 0', 'mobile_number', 'skills', 'no_of_pages', 'score'])
+                recommendation = pd.DataFrame(columns=['name', 'degree', "email", 'index', 'mobile_number', 'skills', 'no_of_pages', 'score'])
                 count = 0
                 for i in top:
                     recommendation.at[count, 'name'] = df['name'][i]
                     recommendation.at[count, 'degree'] = df['degree'][i]
                     recommendation.at[count, 'email'] = df['email'][i]
-                    recommendation.at[count, 'Unnamed: 0'] = df.index[i]
+                    recommendation.at[count, 'index'] = df.index[i]
                     recommendation.at[count, 'mobile_number'] = df['mobile_number'][i]
                     recommendation.at[count, 'skills'] = df['skills'][i]
                     recommendation.at[count, 'no_of_pages'] = df['no_of_pages'][i]
@@ -50,6 +49,16 @@ def app():
                 raise jobException(e, sys)
 
         df = MongoDB_function.get_collection_as_dataframe(dataBase, collection)
+
+        # Ensure required columns are present
+        required_columns = ['clean_all', 'pdf_to_base64']  # Add all required columns here
+        for col in required_columns:
+            if col not in df.columns:
+                df[col] = np.nan
+
+        # Example of adding 'clean_all' column with default values if it doesn't exist or is empty
+        if 'clean_all' not in df.columns or df['clean_all'].isnull().all():
+            df['clean_all'] = 'default_value'  # Replace with your logic for computing values
 
         cv_data = []
         for i in range(len(df["clean_all"])):
@@ -75,8 +84,8 @@ def app():
         top, index_score = distance_calculation.KNN(df['clean_all'], jd_df['jd'], number_of_neighbors=min(len(df['clean_all']), 19))
         knn = get_recommendation(top, df, index_score)
 
-        merge1 = knn[['Unnamed: 0', 'name', 'score']].merge(TF[['Unnamed: 0', 'score']], on="Unnamed: 0")
-        final = merge1.merge(cv[['Unnamed: 0', 'score']], on='Unnamed: 0')
+        merge1 = knn[['index', 'name', 'score']].merge(TF[['index', 'score']], on="index")
+        final = merge1.merge(cv[['index', 'score']], on='index')
         final = final.rename(columns={"score_x": "KNN", "score_y": "TF-IDF", "score": "CV"})
 
         from sklearn.preprocessing import MinMaxScaler
@@ -90,7 +99,7 @@ def app():
 
         final = final.sort_values(by="Final", ascending=False)
         final1 = final.sort_values(by="Final", ascending=False).copy()
-        final_df = df.merge(final1, on='Unnamed: 0')
+        final_df = df.merge(final1, left_index=True, right_on='index')
         final_df = final_df.sort_values(by="Final", ascending=False)
         final_df = final_df.reset_index(drop=True)
         final_df = final_df.head(no_of_cv)
@@ -99,25 +108,28 @@ def app():
         with db_expander:
             no_of_cols = 3
             cols = st.columns(no_of_cols)
-            for i in range(0, no_of_cv):
-                cols[i % no_of_cols].text(f"CV ID: {final_df['Unnamed: 0'][i]}")
+            for i in range(0, min(no_of_cv, len(final_df))):  # Ensure we don't go out of range
+                cols[i % no_of_cols].text(f"CV ID: {final_df['index'][i]}")
                 cols[i % no_of_cols].text(f"Name: {final_df['name_x'][i]}")
                 cols[i % no_of_cols].text(f"Phone no.: {final_df['mobile_number'][i]}")
                 cols[i % no_of_cols].text(f"Skills: {final_df['skills'][i]}")
                 cols[i % no_of_cols].text(f"Degree: {final_df['degree'][i]}")
                 cols[i % no_of_cols].text(f"No. of Pages Resume: {final_df['no_of_pages'][i]}")
                 cols[i % no_of_cols].text(f"Email: {final_df['email'][i]}")
-                encoded_pdf = final_df['pdf_to_base64'][i]
-                cols[i % no_of_cols].markdown(f'<a href="data:application/octet-stream;base64,{encoded_pdf}" download="resume.pdf"><button style="background-color:GreenYellow;">Download Resume</button></a>', unsafe_allow_html=True)
-                embed_code = utils.show_pdf(encoded_pdf)
-                cvID = final1['Unnamed: 0'][i]
-                show_pdf = cols[i % no_of_cols].button(f"{cvID}.pdf")
-                if show_pdf:
-                    st.markdown(embed_code, unsafe_allow_html=True)
-                cols[i % no_of_cols].text('___________________________________________________')
 
-    else:
-        st.write("<p style='font-size:15px;'>Please Provide The Job Description </p>", unsafe_allow_html=True)
+                # Check if 'pdf_to_base64' column exists and handle it accordingly
+                if 'pdf_to_base64' in final_df.columns:
+                    encoded_pdf = final_df['pdf_to_base64'][i]
+                    cols[i % no_of_cols].markdown(f'<a href="data:application/octet-stream;base64,{encoded_pdf}" download="resume.pdf"><button style="background-color:GreenYellow;">Download Resume</button></a>', unsafe_allow_html=True)
+                    embed_code = utils.show_pdf(encoded_pdf)
+                    cvID = final1['index'][i]
+                    show_pdf = cols[i % no_of_cols].button(f"{cvID}.pdf")
+                    if show_pdf:
+                        st.markdown(embed_code, unsafe_allow_html=True)
+                else:
+                    cols[i % no_of_cols].text('PDF not available')
+
+                cols[i % no_of_cols].text('___________________________________________________')
 
 if __name__ == '__main__':
     app()
