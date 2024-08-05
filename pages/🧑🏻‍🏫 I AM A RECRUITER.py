@@ -50,15 +50,14 @@ def app():
 
         df = MongoDB_function.get_collection_as_dataframe(dataBase, collection)
 
-        # Ensure required columns are present
-        required_columns = ['clean_all', 'pdf_to_base64']  # Add all required columns here
+        
+        required_columns = ['clean_all', 'pdf_to_base64'] 
         for col in required_columns:
             if col not in df.columns:
                 df[col] = np.nan
 
-        # Example of adding 'clean_all' column with default values if it doesn't exist or is empty
         if 'clean_all' not in df.columns or df['clean_all'].isnull().all():
-            df['clean_all'] = 'default_value'  # Replace with your logic for computing values
+            df['clean_all'] = 'default_value' 
 
         cv_data = []
         for i in range(len(df["clean_all"])):
@@ -108,7 +107,7 @@ def app():
         with db_expander:
             no_of_cols = 3
             cols = st.columns(no_of_cols)
-            for i in range(0, min(no_of_cv, len(final_df))):  # Ensure we don't go out of range
+            for i in range(0, min(no_of_cv, len(final_df))): 
                 cols[i % no_of_cols].text(f"CV ID: {final_df['index'][i]}")
                 cols[i % no_of_cols].text(f"Name: {final_df['name_x'][i]}")
                 cols[i % no_of_cols].text(f"Phone no.: {final_df['mobile_number'][i]}")
@@ -117,7 +116,6 @@ def app():
                 cols[i % no_of_cols].text(f"No. of Pages Resume: {final_df['no_of_pages'][i]}")
                 cols[i % no_of_cols].text(f"Email: {final_df['email'][i]}")
 
-                # Check if 'pdf_to_base64' column exists and handle it accordingly
                 if 'pdf_to_base64' in final_df.columns:
                     encoded_pdf = final_df['pdf_to_base64'][i]
                     cols[i % no_of_cols].markdown(f'<a href="data:application/octet-stream;base64,{encoded_pdf}" download="resume.pdf"><button style="background-color:GreenYellow;">Download Resume</button></a>', unsafe_allow_html=True)
