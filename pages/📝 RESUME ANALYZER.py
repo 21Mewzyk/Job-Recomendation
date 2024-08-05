@@ -37,7 +37,7 @@ def course_recommender(course_list):
 
 
 def run():
-        st.title("Resume Analyser")
+        st.title("Resume Analyzer")
 
 
         pdf_file = st.file_uploader("Choose your Resume", type=["pdf"])
