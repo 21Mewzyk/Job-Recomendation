@@ -32,10 +32,10 @@ def app():
     st.title('Job Recommendation')
     c1, c2 = st.columns((3, 2))
     cv = c1.file_uploader('Upload your CV', type='pdf')
-    no_of_jobs = st.slider('Number of Job Recommendations:', min_value=1, max_value=100, step=10)
+    no_of_jobs = st.slider('Max Number of Job Recommendations:', min_value=1, max_value=100, step=10)
 
     if cv is not None:
-        if st.button('Proceed Further !! '):
+        if st.button('Proceed'):
             with st_lottie_spinner(url, key="download", reverse=True, speed=1, loop=True, quality='high'):
                 time.sleep(10)
                 try:
