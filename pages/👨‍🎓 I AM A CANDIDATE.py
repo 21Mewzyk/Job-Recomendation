@@ -8,7 +8,7 @@ import base64, random
 from pyresparser import ResumeParser
 import os, sys
 import pymongo
-from JobRecommendation.animation import load_lottieurl
+import json
 from streamlit_lottie import st_lottie, st_lottie_spinner
 from JobRecommendation.side_logo import add_logo
 from JobRecommendation.sidebar import sidebar
@@ -22,7 +22,14 @@ collection2 = "Resume_from_CANDIDATE"
 
 st.set_page_config(layout="wide", page_icon='logo/logo2.png', page_title="CANDIDATE")
 
-url = load_lottieurl("https://assets4.lottiefiles.com/packages/lf20_x62chJ.json")
+# Load the local animation file
+def load_lottiefile(filepath: str):
+    with open(filepath, "r") as f:
+        return json.load(f)
+
+animation_file = "D:\\Vscode_projects\\Job-Recommendation\\Animations\\CandidateAnimation.json"
+animation_data = load_lottiefile(animation_file)
+
 add_logo()
 sidebar()
 
@@ -36,7 +43,7 @@ def app():
 
     if cv is not None:
         if st.button('Proceed'):
-            with st_lottie_spinner(url, key="download", reverse=True, speed=1, loop=True, quality='high'):
+            with st_lottie_spinner(animation_data, key="download", reverse=True, speed=1, loop=True, quality='high'):
                 time.sleep(10)
                 try:
                     count_ = 0
