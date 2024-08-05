@@ -22,7 +22,6 @@ collection2 = "Resume_from_CANDIDATE"
 
 st.set_page_config(layout="wide", page_icon='logo/logo2.png', page_title="CANDIDATE")
 
-# Load the local animation file
 def load_lottiefile(filepath: str):
     with open(filepath, "r") as f:
         return json.load(f)
