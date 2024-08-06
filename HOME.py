@@ -16,7 +16,7 @@ def load_lottiefile(filepath: str):
 
 st.set_page_config(layout="centered", page_icon='logo/logo2.png', page_title="HOMEPAGE")
 
-lottie_animation = load_lottiefile("D:\Vscode_projects\Job-Recommendation\Animations\home page animation.json")
+lottie_animation = load_lottiefile("D:\Vscode_projects\Job-Recommendation\Animations\AI Robot.json")
 
 add_logo()
 sidebar()

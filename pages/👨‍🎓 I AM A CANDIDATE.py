@@ -26,7 +26,7 @@ def load_lottiefile(filepath: str):
     with open(filepath, "r") as f:
         return json.load(f)
 
-animation_file = "D:\\Vscode_projects\\Job-Recommendation\\Animations\\CandidateAnimation.json"
+animation_file = "D:\Vscode_projects\Job-Recommendation\Animations\Loading 2.json"
 animation_data = load_lottiefile(animation_file)
 
 add_logo()
@@ -42,8 +42,7 @@ def app():
 
     if cv is not None:
         if st.button('Proceed'):
-            with st_lottie_spinner(animation_data, key="download", reverse=True, speed=1, loop=True, quality='high'):
-                time.sleep(10)
+            with st_lottie_spinner(animation_data, height=500, width=500, key="download", reverse=True, speed=1, loop=True, quality='high'):
                 try:
                     count_ = 0
                     cv_text = utils.extract_data(cv)
