@@ -26,7 +26,7 @@ def load_lottiefile(filepath: str):
     with open(filepath, "r") as f:
         return json.load(f)
 
-animation_file = "D:\Vscode_projects\Job-Recommendation\Animations\Loading 2.json"
+animation_file = "D:/Vscode_projects/Job-Recommendation/Animations/Loading 2.json"
 animation_data = load_lottiefile(animation_file)
 
 add_logo()
@@ -38,107 +38,116 @@ def app():
     st.title('Job Recommendation')
     c1, c2 = st.columns((3, 2))
     cv = c1.file_uploader('Upload your CV', type='pdf')
-    no_of_jobs = st.slider('Max Number of Job Recommendations:', min_value=1, max_value=100, step=10)
+    no_of_jobs = st.slider('Max Number of Job Recommendations:', min_value=1, max_value=100, step=1)
 
     if cv is not None:
         if st.button('Proceed'):
-            with st_lottie_spinner(animation_data, height=500, width=500, key="download", reverse=True, speed=1, loop=True, quality='high'):
+            placeholder = st.empty()  # Create an empty placeholder
+            with placeholder.container():
+                # Center the animation
+                st.markdown("<div style='display: flex; justify-content: right;'>", unsafe_allow_html=True)
+                st_lottie(animation_data, height=500, width=500, key="download", reverse=True, speed=1, loop=True, quality='high')
+                st.markdown("</div>", unsafe_allow_html=True)
+
+            try:
+                count_ = 0
+                cv_text = utils.extract_data(cv)
+                encoded_pdf = utils.pdf_to_base64(cv)
+                resume_data = ResumeParser(cv).get_extracted_data()
+                resume_data["pdf_to_base64"] = encoded_pdf
+
+                timestamp = utils.generateUniqueFileName()
+                save = {timestamp: resume_data}
+                if count_ == 0:
+                    count_ = 1
+                    MongoDB_function.resume_store(save, dataBase, collection2)
+
                 try:
-                    count_ = 0
-                    cv_text = utils.extract_data(cv)
-                    encoded_pdf = utils.pdf_to_base64(cv)
-                    resume_data = ResumeParser(cv).get_extracted_data()
-                    resume_data["pdf_to_base64"] = encoded_pdf
+                    NLP_Processed_CV = text_preprocessing.nlp(cv_text)
+                except NameError:
+                    st.error('Please enter a valid input')
 
-                    timestamp = utils.generateUniqueFileName()
-                    save = {timestamp: resume_data}
-                    if count_ == 0:
-                        count_ = 1
-                        MongoDB_function.resume_store(save, dataBase, collection2)
+                df2 = pd.DataFrame()
+                df2['title'] = ["I"]
+                df2['job highlights'] = ["I"]
+                df2['job description'] = ["I"]
+                df2['company overview'] = ["I"]
+                df2['industry'] = ["I"]
+                df2['All'] = " ".join(NLP_Processed_CV)
 
+                df = MongoDB_function.get_collection_as_dataframe(dataBase, collection1)
+
+                @st.cache_data
+                def get_recommendation(top, df_all, scores):
                     try:
-                        NLP_Processed_CV = text_preprocessing.nlp(cv_text)
-                    except NameError:
-                        st.error('Please enter a valid input')
+                        recommendation = pd.DataFrame(columns=['positionName', 'company', "location", 'JobID', 'description', 'score'])
+                        count = 0
+                        for i in top:
+                            recommendation.at[count, 'positionName'] = df['positionName'][i]
+                            recommendation.at[count, 'company'] = df['company'][i]
+                            recommendation.at[count, 'location'] = df['location'][i]
+                            recommendation.at[count, 'JobID'] = df.index[i]
+                            recommendation.at[count, 'description'] = df['description'][i]
+                            recommendation.at[count, 'score'] = scores[count]
+                            count += 1
+                        return recommendation
+                    except Exception as e:
+                        raise jobException(e, sys)
 
-                    df2 = pd.DataFrame()
-                    df2['title'] = ["I"]
-                    df2['job highlights'] = ["I"]
-                    df2['job description'] = ["I"]
-                    df2['company overview'] = ["I"]
-                    df2['industry'] = ["I"]
-                    df2['All'] = " ".join(NLP_Processed_CV)
+                output2 = distance_calculation.TFIDF(df['All'], df2['All'])
+                top = sorted(range(len(output2)), key=lambda i: output2[i], reverse=True)[:1000]
+                list_scores = [output2[i][0][0] for i in top]
+                TF = get_recommendation(top, df, list_scores)
 
-                    df = MongoDB_function.get_collection_as_dataframe(dataBase, collection1)
+                output3 = distance_calculation.count_vectorize(df['All'], df2['All'])
+                top = sorted(range(len(output3)), key=lambda i: output3[i], reverse=True)[:1000]
+                list_scores = [output3[i][0][0] for i in top]
+                cv = get_recommendation(top, df, list_scores)
 
-                    @st.cache_data
-                    def get_recommendation(top, df_all, scores):
-                        try:
-                            recommendation = pd.DataFrame(columns=['positionName', 'company', "location", 'JobID', 'description', 'score'])
-                            count = 0
-                            for i in top:
-                                recommendation.at[count, 'positionName'] = df['positionName'][i]
-                                recommendation.at[count, 'company'] = df['company'][i]
-                                recommendation.at[count, 'location'] = df['location'][i]
-                                recommendation.at[count, 'JobID'] = df.index[i]
-                                recommendation.at[count, 'description'] = df['description'][i]
-                                recommendation.at[count, 'score'] = scores[count]
-                                count += 1
-                            return recommendation
-                        except Exception as e:
-                            raise jobException(e, sys)
+                top, index_score = distance_calculation.KNN(df['All'], df2['All'], number_of_neighbors=100)
+                knn = get_recommendation(top, df, index_score)
 
-                    output2 = distance_calculation.TFIDF(df['All'], df2['All'])
-                    top = sorted(range(len(output2)), key=lambda i: output2[i], reverse=True)[:1000]
-                    list_scores = [output2[i][0][0] for i in top]
-                    TF = get_recommendation(top, df, list_scores)
+                merge1 = knn[['JobID', 'positionName', 'score']].merge(TF[['JobID', 'score']], on="JobID")
+                final = merge1.merge(cv[['JobID', 'score']], on="JobID")
+                final = final.rename(columns={"score_x": "KNN", "score_y": "TF-IDF", "score": "CV"})
 
-                    output3 = distance_calculation.count_vectorize(df['All'], df2['All'])
-                    top = sorted(range(len(output3)), key=lambda i: output3[i], reverse=True)[:1000]
-                    list_scores = [output3[i][0][0] for i in top]
-                    cv = get_recommendation(top, df, list_scores)
+                from sklearn.preprocessing import MinMaxScaler
+                slr = MinMaxScaler()
+                final[["KNN", "TF-IDF", 'CV']] = slr.fit_transform(final[["KNN", "TF-IDF", 'CV']])
 
-                    top, index_score = distance_calculation.KNN(df['All'], df2['All'], number_of_neighbors=100)
-                    knn = get_recommendation(top, df, index_score)
+                final['KNN'] = (1 - final['KNN']) / 3
+                final['TF-IDF'] = final['TF-IDF'] / 3
+                final['CV'] = final['CV'] / 3
+                final['Final'] = final['KNN'] + final['TF-IDF'] + final['CV']
+                final.sort_values(by="Final", ascending=False)
 
-                    merge1 = knn[['JobID', 'positionName', 'score']].merge(TF[['JobID', 'score']], on="JobID")
-                    final = merge1.merge(cv[['JobID', 'score']], on="JobID")
-                    final = final.rename(columns={"score_x": "KNN", "score_y": "TF-IDF", "score": "CV"})
+                final2 = final.sort_values(by="Final", ascending=False).copy()
+                final_df = df.merge(final2, on="JobID")
+                final_df = final_df.sort_values(by="Final", ascending=False)
+                final_df.fillna('Not Available', inplace=True)
 
-                    from sklearn.preprocessing import MinMaxScaler
-                    slr = MinMaxScaler()
-                    final[["KNN", "TF-IDF", 'CV']] = slr.fit_transform(final[["KNN", "TF-IDF", 'CV']])
+                final_jobrecomm = final_df.head(no_of_jobs)
 
-                    final['KNN'] = (1 - final['KNN']) / 3
-                    final['TF-IDF'] = final['TF-IDF'] / 3
-                    final['CV'] = final['CV'] / 3
-                    final['Final'] = final['KNN'] + final['TF-IDF'] + final['CV']
-                    final.sort_values(by="Final", ascending=False)
+                final_jobrecomm = final_jobrecomm.replace(np.nan, "Not Provided")
 
-                    final2 = final.sort_values(by="Final", ascending=False).copy()
-                    final_df = df.merge(final2, on="JobID")
-                    final_df = final_df.sort_values(by="Final", ascending=False)
-                    final_df.fillna('Not Available', inplace=True)
+                @st.cache_data
+                def make_clickable(link):
+                    return link
 
-                    final_jobrecomm = final_df.head(no_of_jobs)
+                final_jobrecomm['url'] = final_jobrecomm['url'].apply(make_clickable)
+                final_df = final_jobrecomm[['company', 'positionName_x', 'description', 'location', 'salary', 'url']]
+                final_df.rename({'company': 'Company', 'positionName_x': 'Position Name', 'description': 'Job Description', 'location': 'Location', 'salary': 'Salary', 'url': 'Indeed Apply Link'}, axis=1, inplace=True)
 
-                    final_jobrecomm = final_jobrecomm.replace(np.nan, "Not Provided")
+                st.write("### Job Recommendations")
+                st.dataframe(final_df)
 
-                    @st.cache_data
-                    def make_clickable(link):
-                        return link
+                csv = final_df.to_csv(index=False).encode('utf-8')
+                st.download_button("Press to Download", csv, "file.csv", "text/csv", key='download-csv')
 
-                    final_jobrecomm['url'] = final_jobrecomm['url'].apply(make_clickable)
-                    final_df = final_jobrecomm[['company', 'positionName_x', 'description', 'location', 'salary', 'url']]
-                    final_df.rename({'company': 'Company', 'positionName_x': 'Position Name', 'description': 'Job Description', 'location': 'Location', 'salary': 'Salary', 'url': 'Indeed Apply Link'}, axis=1, inplace=True)
+                placeholder.empty()  # Clear the placeholder after processing
 
-                    st.write("### Job Recommendations")
-                    st.dataframe(final_df)
-
-                    csv = final_df.to_csv(index=False).encode('utf-8')
-                    st.download_button("Press to Download", csv, "file.csv", "text/csv", key='download-csv')
-                except Exception as e:
-                    raise jobException(e, sys)
+            except Exception as e:
+                raise jobException(e, sys)
 
 if __name__ == '__main__':
     app()
