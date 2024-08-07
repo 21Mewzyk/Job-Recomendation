@@ -20,6 +20,7 @@ dataBase = "Job-Recomendation"
 collection1 = "preprocessed_jobs_Data"
 collection2 = "Resume_from_CANDIDATE"
 
+
 st.set_page_config(layout="wide", page_icon='logo/logo2.png', page_title="CANDIDATE")
 
 def load_lottiefile(filepath: str):
@@ -144,7 +145,7 @@ def app():
                 csv = final_df.to_csv(index=False).encode('utf-8')
                 st.download_button("Press to Download", csv, "file.csv", "text/csv", key='download-csv')
 
-                placeholder.empty()  # Clear the placeholder after processing
+                placeholder.empty()  
 
             except Exception as e:
                 raise jobException(e, sys)
