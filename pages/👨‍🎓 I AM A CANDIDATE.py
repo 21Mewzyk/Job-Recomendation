@@ -43,7 +43,7 @@ def app():
 
     if cv is not None:
         if st.button('Proceed'):
-            placeholder = st.empty()  # Create an empty placeholder
+            placeholder = st.empty()  
             with placeholder.container():
                 # Center the animation
                 st.markdown("<div style='display: flex; justify-content: right;'>", unsafe_allow_html=True)

@@ -78,7 +78,7 @@ def extract_data(feed):
         raise jobException(e, sys)
 
 
-#   salary_converter (get salary from str)
+#   salary_converter 
 @st.cache_data
 def salary_converter(list_conv):
     try:
