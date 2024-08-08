@@ -46,8 +46,8 @@ def app():
             placeholder = st.empty()  
             with placeholder.container():
                 # Center the animation
-                st.markdown("<div style='display: flex; justify-content: right;'>", unsafe_allow_html=True)
-                st_lottie(animation_data, height=500, width=500, key="download", reverse=True, speed=1, loop=True, quality='high')
+                st.markdown("<div style='display: flex; justify-content: center;'>", unsafe_allow_html=True)
+                st_lottie(animation_data, height=700, width=700, key="download", reverse=True, speed=1, loop=True, quality='high')
                 st.markdown("</div>", unsafe_allow_html=True)
 
             try:
