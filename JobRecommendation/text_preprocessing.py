@@ -20,7 +20,9 @@ import streamlit as st
 @st.cache_data
 def nlp(x):
     try:
-        word_sent = word_tokenize(x.lower().replace("\\n",""))
+        if not isinstance(x, str):
+            x = str(x)
+        word_sent = word_tokenize(x.lower().replace("\\\\n",""))
         _stopwords = set(stopwords.words('english') + list(punctuation) + list("●") + list('–') + list('’'))
         word_sent = [word for word in word_sent if word not in _stopwords]
         lemmatizer = WordNetLemmatizer()
@@ -28,3 +30,4 @@ def nlp(x):
         return NLP_Processed
     except Exception as e:
         raise jobException(e, sys)
+
