@@ -20,7 +20,6 @@ dataBase = "Job_Hunter_DB"
 collection1 = "preprocessed_jobs_Data"
 collection2 = "Resume_Data"
 
-
 st.set_page_config(layout="wide", page_icon='logo/logo2.png', page_title="CANDIDATE")
 
 def load_lottiefile(filepath: str):
@@ -61,7 +60,19 @@ def app():
                 save = {timestamp: resume_data}
                 if count_ == 0:
                     count_ = 1
-                    MongoDB_function.resume_store(save, dataBase, collection2)
+                    # Fetch the last CV ID and increment it
+                    db = MongoDB_function.get_database(dataBase)
+                    last_cv = db[collection2].find_one(sort=[("Unnamed: 0", pymongo.DESCENDING)])
+                    if last_cv:
+                        new_cv_id = last_cv["Unnamed: 0"] + 1
+                    else:
+                        new_cv_id = 1
+                    # Prepare the document to insert
+                    resume_data["Unnamed: 0"] = new_cv_id
+                    resume_data["Unnamed: 0"] = int(resume_data["Unnamed: 0"])
+
+                    # Insert the document into the database
+                    db[collection2].insert_one(resume_data)
 
                 try:
                     NLP_Processed_CV = text_preprocessing.nlp(cv_text)

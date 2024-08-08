@@ -66,38 +66,39 @@ def app():
 
         df["clean_all"] = pd.DataFrame(cv_)
 
-        # TfidfVectorizer function
+        # TF-IDF Calculation
         tf = distance_calculation.TFIDF(df['clean_all'], jd_df['jd'])
+        top_tf = sorted(range(len(tf)), key=lambda i: tf[i], reverse=True)[:100]
+        list_scores_tf = [tf[i][0][0] for i in top_tf]
+        TF = get_recommendation(top_tf, df, list_scores_tf)
 
-        top = sorted(range(len(tf)), key=lambda i: tf[i], reverse=True)[:100]
-        list_scores = [tf[i][0][0] for i in top]
-        TF = get_recommendation(top, df, list_scores)
-
-        # Count Vectorizer function
+        # Count Vectorizer Calculation
         countv = distance_calculation.count_vectorize(df['clean_all'], jd_df['jd'])
-        top = sorted(range(len(countv)), key=lambda i: countv[i], reverse=True)[:100]
-        list_scores = [countv[i][0][0] for i in top]
-        cv = get_recommendation(top, df, list_scores)
+        top_cv = sorted(range(len(countv)), key=lambda i: countv[i], reverse=True)[:100]
+        list_scores_cv = [countv[i][0][0] for i in top_cv]
+        cv = get_recommendation(top_cv, df, list_scores_cv)
 
-        # KNN function
-        top, index_score = distance_calculation.KNN(df['clean_all'], jd_df['jd'], number_of_neighbors=4) #adjustable
-        knn = get_recommendation(top, df, index_score)
+        # KNN Calculation
+        top_knn, index_score_knn = distance_calculation.KNN(df['clean_all'], jd_df['jd'], number_of_neighbors=4) #adjustable
+        knn = get_recommendation(top_knn, df, index_score_knn)
 
+        # Merge and Calculate Final Score
         merge1 = knn[['Unnamed: 0', 'name', 'score']].merge(TF[['Unnamed: 0', 'score']], on="Unnamed: 0")
         final = merge1.merge(cv[['Unnamed: 0', 'score']], on='Unnamed: 0')
         final = final.rename(columns={"score_x": "KNN", "score_y": "TF-IDF", "score": "CV"})
 
-        # Scale it
+        # Normalize Scores
         from sklearn.preprocessing import MinMaxScaler
         slr = MinMaxScaler()
         final[["KNN", "TF-IDF", 'CV']] = slr.fit_transform(final[["KNN", "TF-IDF", 'CV']])
 
-        # Multiply by weights
-        final['KNN'] = (1 - final['KNN']) / 3
-        final['TF-IDF'] = final['TF-IDF'] / 3
-        final['CV'] = final['CV'] / 3
+        # Adjust Weights
+        final['KNN'] = (1 - final['KNN']) * 0.4
+        final['TF-IDF'] = final['TF-IDF'] * 0.3
+        final['CV'] = final['CV'] * 0.3
         final['Final'] = final['KNN'] + final['TF-IDF'] + final['CV']
 
+        # Sort by Final Score
         final = final.sort_values(by="Final", ascending=False)
         final1 = final.sort_values(by="Final", ascending=False).copy()
         final_df = df.merge(final1, on='Unnamed: 0')
