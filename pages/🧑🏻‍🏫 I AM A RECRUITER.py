@@ -80,7 +80,7 @@ def app():
         cv = get_recommendation(top, df, list_scores)
 
         # KNN function
-        top, index_score = distance_calculation.KNN(df['clean_all'], jd_df['jd'], number_of_neighbors=4)
+        top, index_score = distance_calculation.KNN(df['clean_all'], jd_df['jd'], number_of_neighbors=4) #adjustable
         knn = get_recommendation(top, df, index_score)
 
         merge1 = knn[['Unnamed: 0', 'name', 'score']].merge(TF[['Unnamed: 0', 'score']], on="Unnamed: 0")

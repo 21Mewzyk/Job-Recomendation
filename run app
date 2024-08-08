@@ -1,1 +1,2 @@
 conda activate job-recommendation
+streamlit run home.py
