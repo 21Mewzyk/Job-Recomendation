@@ -16,9 +16,9 @@ from JobRecommendation import utils, MongoDB_function
 from JobRecommendation import text_preprocessing, distance_calculation
 from JobRecommendation.exception import jobException
 
-dataBase = "Job-Recomendation"
+dataBase = "Job_Hunter_DB"
 collection1 = "preprocessed_jobs_Data"
-collection2 = "Resume_from_CANDIDATE"
+collection2 = "Resume_Data"
 
 
 st.set_page_config(layout="wide", page_icon='logo/logo2.png', page_title="CANDIDATE")

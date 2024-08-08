@@ -13,8 +13,8 @@ from JobRecommendation.sidebar import sidebar
 from JobRecommendation.courses import ds_course, web_course, android_course, ios_course, uiux_course, ds_keyword, web_keyword, android_keyword, ios_keyword, uiux_keyword
 from JobRecommendation import utils, MongoDB_function
 
-dataBase = "Job-Recomendation"
-collection = "Resume_from_RESUME_ANALYZER"
+dataBase = "Job_Hunter_DB"
+collection = "Resume_Data"
 st.set_page_config(layout="wide", page_icon='logo/logo2.png', page_title="RESUME ANALYZER")
 
 add_logo()

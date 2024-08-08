@@ -10,7 +10,7 @@ from JobRecommendation.sidebar import sidebar
 from JobRecommendation import utils, MongoDB_function
 from JobRecommendation import text_preprocessing, distance_calculation
 
-dataBase = "job-recommender2"
+dataBase = "Job_Hunter_DB"
 collection = "Resume_Data"
 
 st.set_page_config(layout="wide", page_icon='logo/logo2.png', page_title="RECRUITER")
