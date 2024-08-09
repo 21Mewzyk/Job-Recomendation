@@ -9,6 +9,7 @@ from JobRecommendation.side_logo import add_logo
 from JobRecommendation.sidebar import sidebar
 from JobRecommendation import utils, MongoDB_function
 from JobRecommendation import text_preprocessing, distance_calculation
+from pymongo import MongoClient
 
 dataBase = "Job_Hunter_DB"
 collection = "Resume_Data"
@@ -17,6 +18,20 @@ st.set_page_config(layout="wide", page_icon='logo/logo2.png', page_title="RECRUI
 
 add_logo()
 sidebar()
+
+def count_documents_in_collection(db_name, collection_name):
+    try:
+        # Establish connection to MongoDB
+        client = MongoClient("mongodb://localhost:27017/")  # Update with your MongoDB connection string if different
+        db = client[db_name]
+        collection = db[collection_name]
+        
+        # Count documents in the collection
+        document_count = collection.count_documents({})
+        return document_count
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return None
 
 def app():
     st.title('Candidate Recommendation')
@@ -28,6 +43,13 @@ def app():
         NLP_Processed_JD = text_preprocessing.nlp(jd)
         jd_df = pd.DataFrame()
         jd_df['jd'] = [' '.join(NLP_Processed_JD)]
+        
+        # Count documents in the collection before proceeding
+        document_count = count_documents_in_collection(dataBase, collection)
+        if document_count is not None:
+            st.write(f"Total number of CVs in the database: {document_count}")
+        else:
+            st.write("Failed to retrieve the number of documents.")
 
         @st.cache_data
         def get_recommendation(top, df, scores):
@@ -50,11 +72,6 @@ def app():
 
         df = MongoDB_function.get_collection_as_dataframe(dataBase, collection)
 
-        # Ensure 'All' column exists
-        if 'All' not in df.columns:
-            st.error("The 'All' column is missing from the DataFrame.")
-            return
-        
         cv_data = []
         for i in range(len(df["All"])):
             NLP_Processed_cv = text_preprocessing.nlp(df["All"].values[i])

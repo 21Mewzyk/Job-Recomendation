@@ -60,19 +60,24 @@ def app():
                 save = {timestamp: resume_data}
                 if count_ == 0:
                     count_ = 1
-                    # Fetch the last CV ID and increment it
-                    db = MongoDB_function.get_database(dataBase)
-                    last_cv = db[collection2].find_one(sort=[("Unnamed: 0", pymongo.DESCENDING)])
-                    if last_cv:
-                        new_cv_id = last_cv["Unnamed: 0"] + 1
-                    else:
-                        new_cv_id = 1
-                    # Prepare the document to insert
-                    resume_data["Unnamed: 0"] = new_cv_id
-                    resume_data["Unnamed: 0"] = int(resume_data["Unnamed: 0"])
+                # Fetch the last CV ID and increment it
+                db = MongoDB_function.get_database(dataBase)
+                last_cv = db[collection2].find_one(sort=[("Unnamed: 0", pymongo.DESCENDING)])
+                if last_cv:
+                    new_cv_id = last_cv["Unnamed: 0"] + 1
+                else:
+                    new_cv_id = 1
+    
+                # Prepare the document to insert
+                resume_data["Unnamed: 0"] = new_cv_id
+                resume_data["Unnamed: 0"] = int(resume_data["Unnamed: 0"])
+    
+                # Reorder the resume_data to have "Unnamed: 0" before "name"
+                ordered_resume_data = {k: resume_data[k] for k in ["Unnamed: 0"] + [key for key in resume_data if key != "Unnamed: 0"]}
 
-                    # Insert the document into the database
-                    db[collection2].insert_one(resume_data)
+                #Insert the ordered document into the database
+                db[collection2].insert_one(ordered_resume_data)
+
 
                 try:
                     NLP_Processed_CV = text_preprocessing.nlp(cv_text)
