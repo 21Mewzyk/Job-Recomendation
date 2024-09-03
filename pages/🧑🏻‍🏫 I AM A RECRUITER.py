@@ -95,9 +95,14 @@ def app():
         list_scores_cv = [countv[i][0][0] for i in top_cv]
         cv = get_recommendation(top_cv, df, list_scores_cv)
 
-        # KNN Calculation
-        top_knn, index_score_knn = distance_calculation.KNN(df['clean_all'], jd_df['jd'], number_of_neighbors=4) #adjustable
-        knn = get_recommendation(top_knn, df, index_score_knn)
+        # Dynamic KNN Calculation
+        if document_count is not None and document_count > 0:
+            neighbors = min(document_count, 10)  # Use up to 10 neighbors, adjust as needed
+            top_knn, index_score_knn = distance_calculation.KNN(df['clean_all'], jd_df['jd'], number_of_neighbors=neighbors)
+            knn = get_recommendation(top_knn, df, index_score_knn)
+        else:
+            st.error("No CVs available in the database for KNN calculation.")
+            return
 
         # Merge and Calculate Final Score
         merge1 = knn[['Unnamed: 0', 'name', 'score']].merge(TF[['Unnamed: 0', 'score']], on="Unnamed: 0")

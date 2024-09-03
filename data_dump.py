@@ -9,7 +9,7 @@ db = client.test
 # Update the file path to the correct location
 DATA_FILE_PATH = "data/concatenated_data/all_locations.csv"
 # Database Name
-dataBase = "Job-Recomendation"
+dataBase = "Job Hunter DB"
 # Collection Name
 collection = "all_locations_Data"
 
