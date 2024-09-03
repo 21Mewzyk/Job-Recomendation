@@ -2,8 +2,8 @@ import streamlit as st
 
 # Set sidebar config
 def sidebar():
-    st.sidebar.title("About us")
-    st.sidebar.subheader("By")
+    # st.sidebar.title("About us")
+    st.sidebar.subheader("Researchers:")
     
     text_string_variable1 = "Ryan Lester Pallasigue"
     url_string_variable1 = "https://www.linkedin.com/in/ryan-pallasigue-448339300/"

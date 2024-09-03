@@ -47,6 +47,48 @@ def save_cv_to_folder(cv, folder_path):
         f.write(cv.getbuffer())
     return file_path
 
+def pdf_to_base64(pdf_file):
+    """
+    Convert a PDF file to a base64 encoded string.
+    :param pdf_file: The PDF file to encode.
+    :return: A base64 encoded string of the PDF file.
+    """
+    try:
+        # Ensure the file is read in binary mode
+        pdf_bytes = pdf_file.read()
+        # Encode the PDF bytes to base64
+        encoded_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
+        return encoded_pdf
+    except Exception as e:
+        print(f"Error converting PDF to base64: {e}")
+        return None
+
+def extract_degree(cv_text):
+    # Updated pattern to handle colons and ensure we capture the full degree including the field of study
+    degree_patterns = [
+        r"\b(Bachelor(?:'s)? of [A-Za-z]+(?::? [A-Za-z\s&]+)?)\b",
+        r"\b(Master(?:'s)? of [A-Za-z]+(?::? [A-Za-z\s&]+)?)\b",
+        r"\b(Doctor(?:ate)? of [A-Za-z]+(?::? [A-Za-z\s&]+)?)\b",
+        r"\b(B\.?Sc\.?(?: [A-Za-z\s&]+)?|M\.?Sc\.?(?: [A-Za-z\s&]+)?|B\.?Eng\.?(?: [A-Za-z\s&]+)?|M\.?Eng\.?(?: [A-Za-z\s&]+)?)\b"
+    ]
+    degrees_found = []
+    for pattern in degree_patterns:
+        matches = re.findall(pattern, cv_text, re.IGNORECASE)
+        degrees_found.extend(matches)
+    return ", ".join(degrees_found) if degrees_found else None
+
+def extract_college_name(cv_text):
+    # Improved regex to capture full institution names
+    college_patterns = [
+        r"\b(?:[A-Za-z\s]+(?:University|Institute|College|School) of [A-Za-z\s]+)\b",
+        r"\b(?:[A-Za-z\s]+(?:University|Institute|College|School))\b"
+    ]
+    colleges_found = []
+    for pattern in college_patterns:
+        matches = re.findall(pattern, cv_text, re.IGNORECASE)
+        colleges_found.extend(matches)
+    return ", ".join(colleges_found) if colleges_found else None
+
 animation_file = "D:/Vscode_projects/Job-Recommendation/Animations/Loading 2.json"  # Update with your lottie file location.
 animation_data = load_lottiefile(animation_file)
 
@@ -57,8 +99,21 @@ st.set_option('deprecation.showPyplotGlobalUse', False)
 
 def app():
     st.title('Job Recommendation')
-    c1, c2 = st.columns((3, 2))
-    cv = c1.file_uploader('Upload your CV', type='pdf')
+    c1, c2, c3 = st.columns((3, 2, 2))
+    
+    # Location Filter
+    location_filter = c1.text_input('Enter preferred job location:', '')
+    
+    # Salary Range Filter
+    min_salary, max_salary = c2.slider(
+        'Select salary range (in USD):',
+        min_value=0,
+        max_value=200000,  # Adjust this max value based on the expected salary range
+        value=(50000, 100000),
+        step=1000
+    )
+    
+    cv = c3.file_uploader('Upload your CV', type='pdf')
     no_of_jobs = st.slider('Max Number of Job Recommendations:', min_value=1, max_value=100, step=1)
 
     if cv is not None:
@@ -72,9 +127,21 @@ def app():
             try:
                 count_ = 0
                 cv_text = utils.extract_data(cv)
-                encoded_pdf = utils.pdf_to_base64(cv)
+                encoded_pdf = pdf_to_base64(cv)
                 resume_data = ResumeParser(cv).get_extracted_data()
                 resume_data["pdf_to_base64"] = encoded_pdf
+
+                # Extract degree and college name using custom functions
+                degree = resume_data.get("degree") or extract_degree(cv_text)
+                college_name = resume_data.get("college_name") or extract_college_name(cv_text)
+
+                resume_data["degree"] = degree
+                resume_data["college_name"] = college_name
+
+                if not degree:
+                    st.warning("Degree not found in the CV.")
+                if not college_name:
+                    st.warning("College name not found in the CV.")
 
                 # Save the CV to the specified folder and get the file path
                 file_path = save_cv_to_folder(cv, cv_save_folder)
@@ -205,7 +272,7 @@ def app():
 
                 final_jobrecomm['url'] = final_jobrecomm['url'].apply(make_clickable)
                 final_df = final_jobrecomm[['company', 'positionName_x', 'description', 'location', 'salary', 'url']]
-                final_df.rename({'company': 'Company', 'positionName_x': 'Position Name', 'description': 'Job Description', 'location': 'Location', 'salary': 'Salary', 'url': 'Indeed Apply Link'}, axis=1, inplace=True)
+                final_df.rename({'company': 'Company', 'positionName_x': 'Position Name', 'description': 'Job Description', 'location': 'Location', 'salary': 'Annual Salary in PHP', 'url': 'Indeed Apply Link'}, axis=1, inplace=True)
 
                 st.write("### Job Recommendations")
                 st.dataframe(final_df)

@@ -8,7 +8,9 @@ from JobRecommendation.exception import jobException
 from JobRecommendation.side_logo import add_logo
 from JobRecommendation.sidebar import sidebar
 from JobRecommendation import utils, MongoDB_function
-from JobRecommendation import text_preprocessing, distance_calculation
+from JobRecommendation import text_preprocessing
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 from pymongo import MongoClient
 
 dataBase = "Job_Hunter_DB"
@@ -41,8 +43,7 @@ def app():
 
     if len(jd) >= 1:
         NLP_Processed_JD = text_preprocessing.nlp(jd)
-        jd_df = pd.DataFrame()
-        jd_df['jd'] = [' '.join(NLP_Processed_JD)]
+        jd_text = ' '.join(NLP_Processed_JD)
         
         # Count documents in the collection before proceeding
         document_count = count_documents_in_collection(dataBase, collection)
@@ -51,103 +52,55 @@ def app():
         else:
             st.write("Failed to retrieve the number of documents.")
 
-        @st.cache_data
-        def get_recommendation(top, df, scores):
-            try:
-                recommendation = pd.DataFrame(columns=['name', 'degree', "email", 'Unnamed: 0', 'mobile_number', 'skills', 'no_of_pages', 'score'])
-                count = 0
-                for i in top:
-                    recommendation.at[count, 'name'] = df['name'][i]
-                    recommendation.at[count, 'degree'] = df['degree'][i]
-                    recommendation.at[count, 'email'] = df['email'][i]
-                    recommendation.at[count, 'Unnamed: 0'] = df.index[i]
-                    recommendation.at[count, 'mobile_number'] = df['mobile_number'][i]
-                    recommendation.at[count, 'skills'] = df['skills'][i]
-                    recommendation.at[count, 'no_of_pages'] = df['no_of_pages'][i]
-                    recommendation.at[count, 'score'] = scores[count]
-                    count += 1
-                return recommendation
-            except Exception as e:
-                raise jobException(e, sys)
-
         df = MongoDB_function.get_collection_as_dataframe(dataBase, collection)
 
-        cv_data = []
-        for i in range(len(df["All"])):
-            NLP_Processed_cv = text_preprocessing.nlp(df["All"].values[i])
-            cv_data.append(NLP_Processed_cv)
+        # Process CVs
+        df["clean_all"] = df["All"].apply(lambda x: ' '.join(text_preprocessing.nlp(x)))
 
-        cv_ = []
-        for i in cv_data:
-            cv_.append([' '.join(i)])
+        # Combine Job Description and CVs for TF-IDF Vectorization
+        documents = [jd_text] + df["clean_all"].tolist()
+        
+        # TF-IDF Vectorization
+        tfidf_vectorizer = TfidfVectorizer()
+        tfidf_matrix = tfidf_vectorizer.fit_transform(documents)
 
-        df["clean_all"] = pd.DataFrame(cv_)
+        # Calculate Cosine Similarity
+        cosine_similarities = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:]).flatten()
 
-        # TF-IDF Calculation
-        tf = distance_calculation.TFIDF(df['clean_all'], jd_df['jd'])
-        top_tf = sorted(range(len(tf)), key=lambda i: tf[i], reverse=True)[:100]
-        list_scores_tf = [tf[i][0][0] for i in top_tf]
-        TF = get_recommendation(top_tf, df, list_scores_tf)
+        # Add Cosine Similarity Scores to DataFrame
+        df["cosine_similarity"] = cosine_similarities
 
-        # Count Vectorizer Calculation
-        countv = distance_calculation.count_vectorize(df['clean_all'], jd_df['jd'])
-        top_cv = sorted(range(len(countv)), key=lambda i: countv[i], reverse=True)[:100]
-        list_scores_cv = [countv[i][0][0] for i in top_cv]
-        cv = get_recommendation(top_cv, df, list_scores_cv)
+        # Define a threshold for cosine similarity
+        similarity_threshold = 0.1  # Adjust this threshold based on your needs
 
-        # Dynamic KNN Calculation
-        if document_count is not None and document_count > 0:
-            neighbors = min(document_count, 10)  # Use up to 10 neighbors, adjust as needed
-            top_knn, index_score_knn = distance_calculation.KNN(df['clean_all'], jd_df['jd'], number_of_neighbors=neighbors)
-            knn = get_recommendation(top_knn, df, index_score_knn)
-        else:
-            st.error("No CVs available in the database for KNN calculation.")
-            return
+        # Filter CVs that meet the similarity threshold
+        df_filtered = df[df["cosine_similarity"] >= similarity_threshold]
 
-        # Merge and Calculate Final Score
-        merge1 = knn[['Unnamed: 0', 'name', 'score']].merge(TF[['Unnamed: 0', 'score']], on="Unnamed: 0")
-        final = merge1.merge(cv[['Unnamed: 0', 'score']], on='Unnamed: 0')
-        final = final.rename(columns={"score_x": "KNN", "score_y": "TF-IDF", "score": "CV"})
+        # Rank CVs by Cosine Similarity
+        df_sorted = df_filtered.sort_values(by="cosine_similarity", ascending=False).head(no_of_cv)
 
-        # Normalize Scores
-        from sklearn.preprocessing import MinMaxScaler
-        slr = MinMaxScaler()
-        final[["KNN", "TF-IDF", 'CV']] = slr.fit_transform(final[["KNN", "TF-IDF", 'CV']])
-
-        # Adjust Weights
-        final['KNN'] = (1 - final['KNN']) * 0.4
-        final['TF-IDF'] = final['TF-IDF'] * 0.3
-        final['CV'] = final['CV'] * 0.3
-        final['Final'] = final['KNN'] + final['TF-IDF'] + final['CV']
-
-        # Sort by Final Score
-        final = final.sort_values(by="Final", ascending=False)
-        final1 = final.sort_values(by="Final", ascending=False).copy()
-        final_df = df.merge(final1, on='Unnamed: 0')
-        final_df = final_df.sort_values(by="Final", ascending=False)
-        final_df = final_df.reset_index(drop=True)
-        final_df = final_df.head(no_of_cv)
-
-        if len(final_df) < no_of_cv:
-            st.error(f"Not enough CVs to recommend. Only {len(final_df)} CVs available.")
+        # Display the top-ranked CVs
+        if len(df_sorted) < no_of_cv:
+            st.error(f"Not enough CVs to recommend. Only {len(df_sorted)} CVs available.")
             return
         
         db_expander = st.expander(label='CV recommendations:')
         with db_expander:
             no_of_cols = 3
             cols = st.columns(no_of_cols)
-            for i in range(len(final_df)):
-                cols[i % no_of_cols].text(f"CV ID: {final_df['Unnamed: 0'][i]}")
-                cols[i % no_of_cols].text(f"Name: {final_df['name_x'][i]}")
-                cols[i % no_of_cols].text(f"Phone no.: {final_df['mobile_number'][i]}")
-                cols[i % no_of_cols].text(f"Skills: {final_df['skills'][i]}")
-                cols[i % no_of_cols].text(f"Degree: {final_df['degree'][i]}")
-                cols[i % no_of_cols].text(f"No. of Pages Resume: {final_df['no_of_pages'][i]}")
-                cols[i % no_of_cols].text(f"Email: {final_df['email'][i]}")
-                encoded_pdf = final_df['pdf_to_base64'][i]
+            for i in range(len(df_sorted)):
+                cols[i % no_of_cols].text(f"CV ID: {df_sorted['Unnamed: 0'].iloc[i]}")
+                cols[i % no_of_cols].text(f"Name: {df_sorted['name'].iloc[i]}")
+                cols[i % no_of_cols].text(f"Phone no.: {df_sorted['mobile_number'].iloc[i]}")
+                cols[i % no_of_cols].text(f"Skills: {df_sorted['skills'].iloc[i]}")
+                cols[i % no_of_cols].text(f"Degree: {df_sorted['degree'].iloc[i]}")
+                cols[i % no_of_cols].text(f"College/University: {df_sorted['college_name'].iloc[i]}")
+                cols[i % no_of_cols].text(f"No. of Pages Resume: {df_sorted['no_of_pages'].iloc[i]}")
+                cols[i % no_of_cols].text(f"Email: {df_sorted['email'].iloc[i]}")
+                encoded_pdf = df_sorted['pdf_to_base64'].iloc[i]
                 cols[i % no_of_cols].markdown(f'<a href="data:application/octet-stream;base64,{encoded_pdf}" download="resume.pdf"><button style="background-color:GreenYellow;">Download Resume</button></a>', unsafe_allow_html=True)
                 embed_code = utils.show_pdf(encoded_pdf)
-                cvID = final1['Unnamed: 0'][i]
+                cvID = df_sorted['Unnamed: 0'].iloc[i]
                 show_pdf = cols[i % no_of_cols].button(f"{cvID}.pdf")
                 if show_pdf:
                     st.markdown(embed_code, unsafe_allow_html=True)
