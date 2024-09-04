@@ -104,13 +104,13 @@ def app():
     # Location Filter
     location_filter = c1.text_input('Enter preferred job location:', '')
     
-    # Salary Range Filter
+    # Salary Range Filter in PHP 
     min_salary, max_salary = c2.slider(
-        'Select salary range (in USD):',
-        min_value=0,
-        max_value=200000,  # Adjust this max value based on the expected salary range
-        value=(50000, 100000),
-        step=1000
+        'Select salary range (in PHP):',
+        min_value=25000,
+        max_value=500000,
+        value=(25000, 500000),  
+        step=1000  
     )
     
     cv = c3.file_uploader('Upload your CV', type='pdf')
