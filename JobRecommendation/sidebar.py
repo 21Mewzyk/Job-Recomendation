@@ -6,7 +6,7 @@ def sidebar():
     st.sidebar.subheader("LinkedIn Profile Links:")
     
     text_string_variable1 = "Ryan Lester Pallasigue"
-    url_string_variable1 = "https://www.linkedin.com/in/ryan-pallasigue-448339300/"
+    url_string_variable1 = "https://www.linkedin.com/in/ryan-lester-pallasigue-448339300//"
     link1 = f'[{text_string_variable1}]({url_string_variable1})'
     st.sidebar.markdown(link1, unsafe_allow_html=True)
 

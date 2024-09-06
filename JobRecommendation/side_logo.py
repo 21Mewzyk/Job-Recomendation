@@ -26,10 +26,7 @@ import streamlit as st
     # background-image: url(https://www.linkpicture.com/q/logo_19.png);
 from PIL import Image
 import streamlit as st
-
-# You can always call this function where ever you want
-
-def add_logo(logo_path="logo/image.png", width=300, height=100):
+def add_logo(logo_path="logo/logo2", width=300, height=100):
  
     """Read and return a resized logo"""
     # logo = Image.open(logo_path)
