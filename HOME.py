@@ -10,6 +10,10 @@ from datetime import datetime
 from streamlit_lottie import st_lottie
 import json
 
+# Download NLTK wordnet data
+import nltk
+nltk.download('wordnet')
+
 # Function to load Lottie animation file for visual display
 def load_lottiefile(filepath: str):
     with open(filepath, "r") as f:

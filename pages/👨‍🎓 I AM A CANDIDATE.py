@@ -117,20 +117,23 @@ def cv_to_base64_and_encrypt(cv):
     
     return encrypted_cv
 
-# Extract the degree information from the CV text using regex patterns
+# Function to extract the degree information from the CV text
 def extract_degree(cv_text):
     patterns = [
-        r"\b(Bachelor(?:'s)? of [A-Za-z]+)\b", r"\b(Master(?:'s)? of [A-Za-z]+)\b", 
-        r"\b(Doctor(?:ate)? of [A-Za-z]+)\b", r"\b(B\.?Sc\.?|M\.?Sc\.?)\b"
+        r"Bachelor(?:'s)? of [A-Za-z]+", r"Master(?:'s)? of [A-Za-z]+",
+        r"Doctor(?:ate)? of [A-Za-z]+", r"B\.?Sc\.?", r"M\.?Sc\.?"
     ]
+    
     matches = [re.findall(pat, cv_text, re.IGNORECASE) for pat in patterns]
-    return ", ".join([item for sublist in matches for item in sublist])
+    
+    return ", ".join([match for sublist in matches for match in sublist])
 
-# Extract the college or university name from the CV text using regex patterns
+# Function to extract the college or university name from the CV text
 def extract_college_name(cv_text):
-    patterns = [r"\b(?:[A-Za-z\s]+University)\b", r"\b(?:[A-Za-z\s]+College)\b"]
+    patterns = [r"\b[A-Za-z\s]+ University\b", r"\b[A-Za-z\s]+ College\b"]
     matches = [re.findall(pat, cv_text, re.IGNORECASE) for pat in patterns]
-    return ", ".join([item for sublist in matches for item in sublist])
+    
+    return ", ".join([match for sublist in matches for match in sublist])
 
 # Load and set up the Lottie animation for the UI
 animation_data = load_lottiefile("D:/Vscode_projects/Job-Recommendation/Animations/Loading 2.json")
@@ -145,25 +148,12 @@ st.set_option('deprecation.showPyplotGlobalUse', False)
 def app():
     # Display the page title
     st.title('Job Recommendation')
-    
-    # Switches to show or hide location and salary filters
-    show_location_filter = True
-    show_salary_filter = True
+
+    # Switch for hiding/showing the name and CV
+    hide_name_and_cv = st.checkbox('Hide my name and CV information')
 
     # Create columns for layout
     c1, c2, c3 = st.columns((3, 2, 2))
-
-    # Conditionally display the location filter (text input)
-    if show_location_filter:
-        location_filter = c2.text_input('Enter preferred job location:', '')
-    else:
-        location_filter = ''  # No filter if the input is hidden
-
-    # Conditionally display the salary range slider
-    if show_salary_filter:
-        min_salary, max_salary = c3.slider('Select salary range (in PHP):', 25000, 500000, (25000, 500000), 1000)
-    else:
-        min_salary, max_salary = None, None  # No filter if the slider is hidden
 
     # File uploader for uploading the CV in PDF format
     cv = c1.file_uploader('Upload your CV', type='pdf')
@@ -183,6 +173,17 @@ def app():
 
                 # Extract structured resume data from the CV
                 resume_data = ResumeParser(cv).get_extracted_data()
+                
+                # Ensure mandatory fields are captured
+                resume_data["email"] = resume_data.get("email", "Not Provided")
+                resume_data["mobile_number"] = resume_data.get("mobile_number", "Not Provided")
+                resume_data["skills"] = resume_data.get("skills", "Not Provided")
+                
+                # Apply the hide option: conditionally remove or include name and CV in resume_data
+                resume_data["hide_info"] = hide_name_and_cv  # Add identifier for hidden info
+                if hide_name_and_cv:
+                    resume_data.pop('name', None)  # Remove name if hiding is selected
+
                 resume_data["degree"] = resume_data.get("degree") or extract_degree(cv_text)
                 resume_data["college_name"] = resume_data.get("college_name") or extract_college_name(cv_text)
 
@@ -213,7 +214,7 @@ def app():
                     resume_data["pdf_to_base64"] = cv_base64
 
                     db[collection2].insert_one(resume_data)
-                    st.success("")
+                    st.success("CV successfully uploaded and stored.")
                 else:
                     # If the CV exists but doesn't have base64 data, add it
                     existing_record = db[collection2].find_one({"cv_hash": cv_hash})
@@ -222,9 +223,9 @@ def app():
                             {'cv_hash': cv_hash},
                             {'$set': {'pdf_to_base64': cv_base64}}
                         )
-                        st.success("")
+                        st.success("CV updated with encrypted PDF data.")
                     else:
-                        st.warning("")
+                        st.warning("This CV already exists in the database.")
 
                 # Process the CV text for job recommendations
                 NLP_Processed_CV = text_preprocessing.nlp(cv_text)
@@ -252,25 +253,8 @@ def app():
                 final_recommendation['salary'] = pd.to_numeric(final_recommendation['salary'], errors='coerce')
                 final_recommendation.rename(columns={'salary': 'Annual Salary in PHP'}, inplace=True)
 
-                # Apply filters based on user inputs (if available)
-                apply_salary_filter = show_salary_filter and (min_salary is not None and max_salary is not None)
-                apply_location_filter = show_location_filter and location_filter != ''
-
-                # Filter jobs by salary if salary filter is applied
-                if apply_salary_filter:
-                    filtered_df = final_recommendation[
-                        (final_recommendation['Annual Salary in PHP'] >= min_salary) & 
-                        (final_recommendation['Annual Salary in PHP'] <= max_salary)
-                    ]
-                else:
-                    filtered_df = final_recommendation
-
-                # Filter jobs by location if location filter is applied
-                if apply_location_filter:
-                    filtered_df = filtered_df[filtered_df['location'].str.contains(location_filter, case=False, na=False)]
-
                 # Limit the number of job recommendations based on user input
-                filtered_df = filtered_df.head(no_of_jobs)
+                filtered_df = final_recommendation.head(no_of_jobs)
 
                 # Display the filtered job recommendations
                 st.write("### Filtered Job Recommendations")

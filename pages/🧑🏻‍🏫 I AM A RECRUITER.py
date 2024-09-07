@@ -60,21 +60,6 @@ def decrypt_data(encrypted_data, key):
     
     return decrypted_data
 
-# Function to count the number of documents (CVs) in a specified MongoDB collection
-def count_documents_in_collection(db_name, collection_name):
-    try:
-        # Connect to MongoDB
-        client = MongoClient("mongodb://localhost:27017/")  # Update with your MongoDB connection string if different
-        db = client[db_name]
-        collection = db[collection_name]
-        
-        # Return the count of documents in the collection
-        document_count = collection.count_documents({})
-        return document_count
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        return None
-
 # Main function to run the app
 def app():
     st.title('Candidate Recommendation')  # Set the page title
@@ -87,7 +72,7 @@ def app():
     
     # Text area to paste the job description
     jd = c1.text_area("PASTE YOUR JOB DESCRIPTION HERE")
-
+    
     # Proceed if job description is provided
     if len(jd) >= 1:
         # Process the job description using NLP
@@ -134,29 +119,28 @@ def app():
             cols = st.columns(no_of_cols)  # Create columns
             key = derive_key(ENCRYPTION_PASSWORD, SALT)  # Derive the key for decryption
             for i in range(len(df_sorted)):
-                # Display details for each recommended CV in the columns
-                cols[i % no_of_cols].text(f"CV ID: {df_sorted['Unnamed: 0'].iloc[i]}")
-                cols[i % no_of_cols].text(f"Name: {df_sorted['name'].iloc[i]}")
-                cols[i % no_of_cols].text(f"Phone no.: {df_sorted['mobile_number'].iloc[i]}")
-                cols[i % no_of_cols].text(f"Skills: {df_sorted['skills'].iloc[i]}")
-                cols[i % no_of_cols].text(f"Degree: {df_sorted['degree'].iloc[i]}")
-                cols[i % no_of_cols].text(f"College/University: {df_sorted['college_name'].iloc[i]}")
-                cols[i % no_of_cols].text(f"No. of Pages Resume: {df_sorted['no_of_pages'].iloc[i]}")
+                # Check if the 'hide_info' flag is set to True
+                hide_info = df_sorted['hide_info'].iloc[i] if 'hide_info' in df_sorted.columns else False
+
+                # Display the email, contact number, and skills regardless of hide_info
                 cols[i % no_of_cols].text(f"Email: {df_sorted['email'].iloc[i]}")
-                
-                # Decrypt the base64-encoded and encrypted PDF resume
-                encrypted_pdf = df_sorted['pdf_to_base64'].iloc[i]
-                decrypted_pdf = decrypt_data(encrypted_pdf, key).decode('utf-8')
-                
-                # Generate a download link for the decrypted resume (encoded in base64)
-                cols[i % no_of_cols].markdown(f'<a href="data:application/octet-stream;base64,{decrypted_pdf}" download="resume.pdf"><button style="background-color:GreenYellow;">Download Resume</button></a>', unsafe_allow_html=True)
-                
-                # Generate and display an embedded preview of the resume (PDF)
-                embed_code = utils.show_pdf(decrypted_pdf)
-                cvID = df_sorted['Unnamed: 0'].iloc[i]
-                show_pdf = cols[i % no_of_cols].button(f"{cvID}.pdf")  # Button to show PDF
-                if show_pdf:
-                    st.markdown(embed_code, unsafe_allow_html=True)  # Display embedded PDF
+                cols[i % no_of_cols].text(f"Contact Number: {df_sorted['mobile_number'].iloc[i]}")
+                cols[i % no_of_cols].text(f"Skills: {df_sorted['skills'].iloc[i]}")
+
+                if not hide_info:
+                    # Decrypt the base64-encoded and encrypted PDF resume
+                    encrypted_pdf = df_sorted['pdf_to_base64'].iloc[i]
+                    decrypted_pdf = decrypt_data(encrypted_pdf, key).decode('utf-8')
+
+                    # Generate a download link for the decrypted resume (encoded in base64)
+                    cols[i % no_of_cols].markdown(f'<a href="data:application/octet-stream;base64,{decrypted_pdf}" download="resume.pdf"><button style="background-color:GreenYellow;">Download Resume</button></a>', unsafe_allow_html=True)
+
+                    # Generate and display an embedded preview of the resume (PDF)
+                    embed_code = utils.show_pdf(decrypted_pdf)
+                    cvID = df_sorted['Unnamed: 0'].iloc[i]
+                    show_pdf = cols[i % no_of_cols].button(f"{cvID}.pdf")  # Button to show PDF
+                    if show_pdf:
+                        st.markdown(embed_code, unsafe_allow_html=True)  # Display embedded PDF
                 
                 # Separate each CV with a line
                 cols[i % no_of_cols].text('___________________________________________________')
